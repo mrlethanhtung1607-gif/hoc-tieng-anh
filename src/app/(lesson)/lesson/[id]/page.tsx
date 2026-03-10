@@ -13,13 +13,13 @@ import {
     Zap,
     Volume2,
     Loader2,
+    BrainCircuit,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { completeLessonAndUnlockNext } from "@/lib/actions/gamification";
 
-type QuestionType = "multiple_choice" | "flashcard";
-
+// ── Types ────────────────────────────────────────────────
 interface MultipleChoiceQuestion {
     id: string;
     type: "multiple_choice";
@@ -27,6 +27,7 @@ interface MultipleChoiceQuestion {
     promptTranslation: string;
     options: string[];
     correctIndex: number;
+    explanation?: string;
 }
 
 interface FlashcardQuestion {
@@ -41,13 +42,48 @@ interface FlashcardQuestion {
 
 type Question = MultipleChoiceQuestion | FlashcardQuestion;
 
-const MOCK_QUESTIONS: Question[] = [
+// ── Fallback mock data (used when AI is unavailable) ─────
+const FALLBACK_QUESTIONS: Question[] = [
     { id: "q1", type: "flashcard", word: "Hello", phonetic: "/həˈloʊ/", meaning: "Xin chào", example: "Hello, how are you today?", exampleTranslation: "Xin chào, hôm nay bạn khỏe không?" },
     { id: "q2", type: "multiple_choice", prompt: '"Xin chào" trong tiếng Anh là gì?', promptTranslation: "Choose the correct translation", options: ["Goodbye", "Hello", "Thank you", "Sorry"], correctIndex: 1 },
     { id: "q3", type: "flashcard", word: "Thank you", phonetic: "/θæŋk juː/", meaning: "Cảm ơn", example: "Thank you for helping me!", exampleTranslation: "Cảm ơn bạn đã giúp tôi!" },
-    { id: "q4", type: "multiple_choice", prompt: '"Tạm biệt" trong tiếng Anh là gì?', promptTranslation: "Choose the correct translation", options: ["Hello", "Please", "Goodbye", "Welcome"], correctIndex: 2 },
 ];
 
+// ── Topic mapping (lesson title → AI topic) ──────────────
+const TOPIC_MAP: Record<string, string> = {
+    "1": "Basic Greetings and Introductions",
+    "2": "Family and Friends",
+    "3": "Daily Routines and Work",
+    "4": "Travel and Exploration",
+    "5": "Food and Restaurants",
+    "6": "Shopping and Prices",
+};
+
+// ── AI Loading Screen ────────────────────────────────────
+function AILoadingScreen() {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen px-4 bg-gradient-to-b from-sky-50 via-white to-emerald-50 dark:from-sky-950/20 dark:via-background dark:to-emerald-950/20">
+            <div className="relative mb-6">
+                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 shadow-xl shadow-sky-500/30 animate-pulse">
+                    <BrainCircuit className="h-12 w-12 text-white" />
+                </div>
+                <div className="absolute -top-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-amber-400 shadow-lg animate-bounce">
+                    <Sparkles className="h-4 w-4 text-white" />
+                </div>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black mb-2 text-center">Giáo viên AI đang soạn bài...</h2>
+            <p className="text-muted-foreground text-center max-w-sm mb-6">
+                Gemini AI đang tạo câu hỏi phù hợp với trình độ của bạn. Chỉ mất vài giây!
+            </p>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin text-sky-500" />
+                <span>Đang tạo câu hỏi thông minh...</span>
+            </div>
+        </div>
+    );
+}
+
+// ── Flashcard Step ───────────────────────────────────────
 function FlashcardStep({ question, onComplete }: { question: FlashcardQuestion; onComplete: () => void }) {
     const [isFlipped, setIsFlipped] = useState(false);
     return (
@@ -81,6 +117,7 @@ function FlashcardStep({ question, onComplete }: { question: FlashcardQuestion; 
     );
 }
 
+// ── Multiple Choice Step ─────────────────────────────────
 function MultipleChoiceStep({ question, selectedOption, onSelect }: { question: MultipleChoiceQuestion; selectedOption: number | null; onSelect: (index: number) => void }) {
     return (
         <div className="flex flex-col items-center justify-center flex-1 px-4 max-w-xl mx-auto w-full">
@@ -101,8 +138,8 @@ function MultipleChoiceStep({ question, selectedOption, onSelect }: { question: 
     );
 }
 
-// ── Completion Screen (writes to Supabase) ──────────────
-function CompletionScreen({ correct, total, xpEarned, lessonId }: { correct: number; total: number; xpEarned: number; lessonId: string }) {
+// ── Completion Screen ────────────────────────────────────
+function CompletionScreen({ correct, total, xpEarned, lessonId, isAI }: { correct: number; total: number; xpEarned: number; lessonId: string; isAI: boolean }) {
     const router = useRouter();
     const [saving, setSaving] = useState(true);
     const [saveError, setSaveError] = useState<string | null>(null);
@@ -130,6 +167,7 @@ function CompletionScreen({ correct, total, xpEarned, lessonId }: { correct: num
             </div>
             <h1 className="text-2xl sm:text-3xl font-black mb-2 text-center">Bạn đã hoàn thành bài học! 🎉</h1>
             <p className="text-muted-foreground text-center mb-2">Tuyệt vời! Hãy tiếp tục giữ vững phong độ nhé.</p>
+            {isAI && <p className="text-xs text-sky-500 mb-2 flex items-center gap-1"><BrainCircuit className="h-3 w-3" /> Câu hỏi được tạo bởi Gemini AI</p>}
             {saving && <p className="text-xs text-muted-foreground mb-4 flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Đang lưu tiến trình...</p>}
             {saved && !saveError && <p className="text-xs text-emerald-600 mb-4">✓ Đã lưu tiến trình + mở khóa bài tiếp theo</p>}
             {saveError && <p className="text-xs text-red-500 mb-4">⚠ {saveError}</p>}
@@ -152,10 +190,16 @@ function CompletionScreen({ correct, total, xpEarned, lessonId }: { correct: num
     );
 }
 
+// ── Main Lesson Page ─────────────────────────────────────
 export default function LessonPage() {
     const params = useParams();
     const router = useRouter();
     const lessonId = params.id as string;
+
+    const [questions, setQuestions] = useState<Question[]>([]);
+    const [isAI, setIsAI] = useState(false);
+    const [loading, setLoading] = useState(true);
+
     const [currentIndex, setCurrentIndex] = useState(0);
     const [selectedOption, setSelectedOption] = useState<number | null>(null);
     const [feedbackState, setFeedbackState] = useState<"idle" | "correct" | "incorrect">("idle");
@@ -163,10 +207,34 @@ export default function LessonPage() {
     const [hearts, setHearts] = useState(3);
     const [phase, setPhase] = useState<"lesson" | "complete">("lesson");
 
-    const questions = MOCK_QUESTIONS;
+    // Fetch AI questions on mount
+    useEffect(() => {
+        const topic = TOPIC_MAP[lessonId] || "Basic English";
+        const level = "A1"; // Could be dynamic based on user profile
+
+        fetch("/api/generate-quiz", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ topic, level }),
+        })
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
+                    setQuestions(data.questions);
+                    setIsAI(true);
+                } else {
+                    setQuestions(FALLBACK_QUESTIONS);
+                }
+            })
+            .catch(() => {
+                setQuestions(FALLBACK_QUESTIONS);
+            })
+            .finally(() => setLoading(false));
+    }, [lessonId]);
+
     const total = questions.length;
     const current = questions[currentIndex];
-    const progress = (currentIndex / total) * 100;
+    const progress = total > 0 ? (currentIndex / total) * 100 : 0;
     const xpPerCorrect = 10;
 
     const handleFlashcardComplete = useCallback(() => { setFeedbackState("correct"); }, []);
@@ -183,11 +251,17 @@ export default function LessonPage() {
         else { setPhase("complete"); }
     }
 
+    // Loading state
+    if (loading) return <AILoadingScreen />;
+
+    // Completion state
     if (phase === "complete") {
         const flashcardCount = questions.filter((q) => q.type === "flashcard").length;
         const totalCorrect = correctCount + flashcardCount;
-        return <CompletionScreen correct={totalCorrect} total={total} xpEarned={totalCorrect * xpPerCorrect} lessonId={lessonId} />;
+        return <CompletionScreen correct={totalCorrect} total={total} xpEarned={totalCorrect * xpPerCorrect} lessonId={lessonId} isAI={isAI} />;
     }
+
+    if (!current) return null;
 
     return (
         <div className="flex flex-col min-h-screen bg-background">
@@ -199,7 +273,8 @@ export default function LessonPage() {
                     <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden">
                         <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500 ease-out" style={{ width: `${progress}%` }} />
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
+                        {isAI && <BrainCircuit className="h-4 w-4 text-sky-500" />}
                         <Heart className={cn("h-5 w-5 transition-colors", hearts > 0 ? "text-red-500 fill-red-500" : "text-muted-foreground")} />
                         <span className="text-sm font-bold tabular-nums text-red-500">{hearts}</span>
                     </div>
@@ -236,7 +311,10 @@ export default function LessonPage() {
                                 <XCircle className="h-6 w-6 text-red-500" />
                                 <div>
                                     <p className="text-sm font-bold text-red-700 dark:text-red-400">Sai rồi!</p>
-                                    <p className="text-xs text-red-600/70 dark:text-red-400/70">Đáp án: {current.type === "multiple_choice" ? current.options[current.correctIndex] : ""}</p>
+                                    <p className="text-xs text-red-600/70 dark:text-red-400/70">
+                                        Đáp án: {current.type === "multiple_choice" ? current.options[current.correctIndex] : ""}
+                                        {current.type === "multiple_choice" && current.explanation && ` — ${current.explanation}`}
+                                    </p>
                                 </div>
                             </div>
                         )}

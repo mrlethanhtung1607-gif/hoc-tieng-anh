@@ -3,6 +3,67 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
+// ── Update Profile Name ──────────────────────────────────
+
+export async function updateProfileName(name: string) {
+    const supabase = await createClient();
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { error: "Chưa đăng nhập" };
+
+    const trimmed = name.trim();
+    if (!trimmed || trimmed.length < 2) return { error: "Tên phải có ít nhất 2 ký tự" };
+    if (trimmed.length > 50) return { error: "Tên không được quá 50 ký tự" };
+
+    const { error } = await supabase
+        .from("profiles")
+        .update({ full_name: trimmed })
+        .eq("id", user.id);
+
+    if (error) return { error: error.message };
+
+    revalidatePath("/profile");
+    revalidatePath("/dashboard");
+    return { success: true };
+}
+
+// ── Get Full Profile (for profile page) ──────────────────
+
+export async function getFullProfile() {
+    const supabase = await createClient();
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, avatar_url, xp, streak, current_level, created_at")
+        .eq("id", user.id)
+        .single();
+
+    if (!profile) return null;
+
+    // Count completed lessons
+    const { count } = await supabase
+        .from("user_progress")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("is_completed", true);
+
+    return {
+        email: user.email ?? "",
+        fullName: profile.full_name,
+        avatarUrl: profile.avatar_url,
+        xp: profile.xp,
+        streak: profile.streak,
+        level: profile.current_level,
+        joinedAt: profile.created_at,
+        completedLessons: count ?? 0,
+    };
+}
+
 // ── Update Level (Placement Test result) ─────────────────
 
 export async function updateLevel(level: string) {
