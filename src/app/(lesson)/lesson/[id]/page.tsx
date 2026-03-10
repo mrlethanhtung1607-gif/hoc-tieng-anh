@@ -49,16 +49,6 @@ const FALLBACK_QUESTIONS: Question[] = [
     { id: "q3", type: "flashcard", word: "Thank you", phonetic: "/θæŋk juː/", meaning: "Cảm ơn", example: "Thank you for helping me!", exampleTranslation: "Cảm ơn bạn đã giúp tôi!" },
 ];
 
-// ── Topic mapping (lesson title → AI topic) ──────────────
-const TOPIC_MAP: Record<string, string> = {
-    "1": "Basic Greetings and Introductions",
-    "2": "Family and Friends",
-    "3": "Daily Routines and Work",
-    "4": "Travel and Exploration",
-    "5": "Food and Restaurants",
-    "6": "Shopping and Prices",
-};
-
 // ── AI Loading Screen ────────────────────────────────────
 function AILoadingScreen() {
     return (
@@ -209,27 +199,35 @@ export default function LessonPage() {
 
     // Fetch AI questions on mount
     useEffect(() => {
-        const topic = TOPIC_MAP[lessonId] || "Basic English";
-        const level = "A1"; // Could be dynamic based on user profile
+        async function loadQuestions() {
+            try {
+                // Step 1: Fetch lesson title from Supabase via a lightweight API call
+                const lessonRes = await fetch(`/api/lesson-info?id=${lessonId}`);
+                const lessonData = lessonRes.ok ? await lessonRes.json() : null;
+                const topic = lessonData?.title || "Basic English";
+                const level = lessonData?.level || "A1";
 
-        fetch("/api/generate-quiz", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ topic, level }),
-        })
-            .then((res) => res.json())
-            .then((data) => {
-                if (data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
-                    setQuestions(data.questions);
+                // Step 2: Generate AI quiz based on lesson topic
+                const quizRes = await fetch("/api/generate-quiz", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ topic, level }),
+                });
+                const quizData = await quizRes.json();
+
+                if (quizData.questions && Array.isArray(quizData.questions) && quizData.questions.length > 0) {
+                    setQuestions(quizData.questions);
                     setIsAI(true);
                 } else {
                     setQuestions(FALLBACK_QUESTIONS);
                 }
-            })
-            .catch(() => {
+            } catch {
                 setQuestions(FALLBACK_QUESTIONS);
-            })
-            .finally(() => setLoading(false));
+            } finally {
+                setLoading(false);
+            }
+        }
+        loadQuestions();
     }, [lessonId]);
 
     const total = questions.length;

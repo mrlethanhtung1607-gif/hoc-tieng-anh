@@ -74,6 +74,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                 <div className="relative w-full">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
+                        id="navbar-search"
                         type="search"
                         placeholder="Tìm khóa học, bài học..."
                         value={searchQuery}
@@ -118,21 +119,18 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 
                 {/* User menu */}
                 <DropdownMenu>
-                    <DropdownMenuTrigger>
-                        <Button
-                            variant="ghost"
-                            className="relative h-9 w-9 rounded-full cursor-pointer"
-                        >
-                            <Avatar className="h-8 w-8">
-                                <AvatarImage
-                                    src={user?.avatar_url ?? undefined}
-                                    alt={user?.display_name ?? "User"}
-                                />
-                                <AvatarFallback className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300 text-xs font-bold">
-                                    {initials}
-                                </AvatarFallback>
-                            </Avatar>
-                        </Button>
+                    <DropdownMenuTrigger
+                        className="relative h-9 w-9 rounded-full cursor-pointer inline-flex items-center justify-center hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                        <Avatar className="h-8 w-8">
+                            <AvatarImage
+                                src={user?.avatar_url ?? undefined}
+                                alt={user?.display_name ?? "User"}
+                            />
+                            <AvatarFallback className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300 text-xs font-bold">
+                                {initials}
+                            </AvatarFallback>
+                        </Avatar>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
                         <div className="px-2 py-1.5">
