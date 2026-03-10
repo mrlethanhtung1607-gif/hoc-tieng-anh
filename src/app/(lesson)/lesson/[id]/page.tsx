@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
     X,
@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { completeLessonAndUnlockNext } from "@/lib/actions/gamification";
+import { saveMistake } from "@/lib/actions/mistakes";
 
 // ── Types ────────────────────────────────────────────────
 interface MultipleChoiceQuestion {
@@ -196,6 +197,7 @@ export default function LessonPage() {
     const [correctCount, setCorrectCount] = useState(0);
     const [hearts, setHearts] = useState(3);
     const [phase, setPhase] = useState<"lesson" | "complete">("lesson");
+    const lessonTitleRef = useRef<string>("");
 
     // Fetch AI questions on mount
     useEffect(() => {
@@ -206,6 +208,7 @@ export default function LessonPage() {
                 const lessonData = lessonRes.ok ? await lessonRes.json() : null;
                 const topic = lessonData?.title || "Basic English";
                 const level = lessonData?.level || "A1";
+                lessonTitleRef.current = topic;
 
                 // Step 2: Generate AI quiz based on lesson topic
                 const quizRes = await fetch("/api/generate-quiz", {
@@ -239,9 +242,23 @@ export default function LessonPage() {
 
     function handleCheck() {
         if (!current || current.type !== "multiple_choice" || selectedOption === null) return;
-        const isCorrect = selectedOption === (current as MultipleChoiceQuestion).correctIndex;
-        if (isCorrect) { setCorrectCount((c) => c + 1); setFeedbackState("correct"); }
-        else { setHearts((h) => Math.max(0, h - 1)); setFeedbackState("incorrect"); }
+        const mc = current as MultipleChoiceQuestion;
+        const isCorrect = selectedOption === mc.correctIndex;
+        if (isCorrect) {
+            setCorrectCount((c) => c + 1);
+            setFeedbackState("correct");
+        } else {
+            setHearts((h) => Math.max(0, h - 1));
+            setFeedbackState("incorrect");
+            // Save mistake for later review
+            saveMistake({
+                questionContent: mc.prompt,
+                options: mc.options,
+                correctAnswer: mc.options[mc.correctIndex],
+                userAnswer: mc.options[selectedOption],
+                lessonTitle: lessonTitleRef.current,
+            });
+        }
     }
 
     function handleNext() {

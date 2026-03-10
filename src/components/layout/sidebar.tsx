@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
         label: "Luyện tập",
         href: "/practice",
         icon: BookOpen,
+        hasBadge: true,
     },
     {
         label: "Kiểm tra trình độ",
@@ -57,6 +59,14 @@ interface SidebarProps {
 
 export function Sidebar({ open, onClose }: SidebarProps) {
     const pathname = usePathname();
+    const [mistakeCount, setMistakeCount] = useState(0);
+
+    useEffect(() => {
+        fetch("/api/mistake-count")
+            .then((r) => r.json())
+            .then((d) => setMistakeCount(d.count ?? 0))
+            .catch(() => { });
+    }, [pathname]); // Refresh on navigation
 
     return (
         <>
@@ -101,6 +111,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                         {NAV_ITEMS.map((item) => {
                             const Icon = item.icon;
                             const isActive = pathname.startsWith(item.href);
+                            const showBadge = "hasBadge" in item && item.hasBadge && mistakeCount > 0;
                             return (
                                 <li key={item.href}>
                                     <Link
@@ -115,6 +126,11 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                                     >
                                         <Icon className="h-5 w-5 shrink-0" />
                                         {item.label}
+                                        {showBadge && (
+                                            <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                                                {mistakeCount > 99 ? "99+" : mistakeCount}
+                                            </span>
+                                        )}
                                     </Link>
                                 </li>
                             );

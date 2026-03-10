@@ -155,6 +155,38 @@ create policy "Users can update own progress"
   using (auth.uid() = user_id);
 
 -- ============================================================
+-- 4. MISTAKES (tracks wrong answers for review/practice)
+-- ============================================================
+create table public.mistakes (
+  id               uuid primary key default uuid_generate_v4(),
+  user_id          uuid not null references public.profiles(id) on delete cascade,
+  question_content text not null,
+  options          jsonb not null default '[]',
+  correct_answer   text not null,
+  user_answer      text,
+  lesson_title     text,
+  created_at       timestamptz not null default now()
+);
+
+comment on table public.mistakes is 'Wrong answers saved for spaced review practice';
+
+create index idx_mistakes_user on public.mistakes(user_id);
+
+alter table public.mistakes enable row level security;
+
+create policy "Users can read own mistakes"
+  on public.mistakes for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert own mistakes"
+  on public.mistakes for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can delete own mistakes"
+  on public.mistakes for delete
+  using (auth.uid() = user_id);
+
+-- ============================================================
 -- SAMPLE DATA (Optional — remove in production)
 -- ============================================================
 insert into public.lessons (title, unit_number, is_unlocked) values
