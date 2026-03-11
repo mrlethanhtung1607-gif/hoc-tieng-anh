@@ -9,6 +9,7 @@ import {
     Trophy,
     Settings,
     BookOpen,
+    BookOpenText,
     GraduationCap,
     X,
 } from "lucide-react";
@@ -37,6 +38,11 @@ const NAV_ITEMS = [
         href: "/leaderboard",
         icon: Trophy,
     },
+    {
+        label: "Đọc truyện",
+        href: "/stories",
+        icon: BookOpenText,
+    },
 ] as const;
 
 const BOTTOM_ITEMS = [
@@ -61,12 +67,18 @@ export function Sidebar({ open, onClose }: SidebarProps) {
     const pathname = usePathname();
     const [mistakeCount, setMistakeCount] = useState(0);
 
+    const [heartsCount, setHeartsCount] = useState(5);
+
     useEffect(() => {
         fetch("/api/mistake-count")
             .then((r) => r.json())
             .then((d) => setMistakeCount(d.count ?? 0))
             .catch(() => { });
-    }, [pathname]); // Refresh on navigation
+        fetch("/api/hearts")
+            .then((r) => r.json())
+            .then((d) => setHeartsCount(d.hearts ?? 5))
+            .catch(() => { });
+    }, [pathname]);
 
     return (
         <>
@@ -84,7 +96,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                     open ? "translate-x-0" : "-translate-x-full"
                 )}
             >
-                {/* Logo */}
+                {/* Logo + Hearts */}
                 <div className="flex h-16 items-center justify-between border-b border-border px-5">
                     <Link
                         href="/dashboard"
@@ -95,14 +107,19 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                         </span>
                         <span>HocTiengAnh</span>
                     </Link>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="lg:hidden cursor-pointer"
-                        onClick={onClose}
-                    >
-                        <X className="h-5 w-5" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1 text-xs font-bold text-pink-500" title="Tim của bạn">
+                            ❤️ {heartsCount}/5
+                        </span>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="lg:hidden cursor-pointer"
+                            onClick={onClose}
+                        >
+                            <X className="h-5 w-5" />
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Main nav */}

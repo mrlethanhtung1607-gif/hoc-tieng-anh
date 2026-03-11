@@ -190,19 +190,41 @@ export default function LessonPage() {
     const [questions, setQuestions] = useState<Question[]>([]);
     const [isAI, setIsAI] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [noHearts, setNoHearts] = useState(false);
 
     const [currentIndex, setCurrentIndex] = useState(0);
     const [selectedOption, setSelectedOption] = useState<number | null>(null);
     const [feedbackState, setFeedbackState] = useState<"idle" | "correct" | "incorrect">("idle");
     const [correctCount, setCorrectCount] = useState(0);
-    const [hearts, setHearts] = useState(3);
+    const [hearts, setHearts] = useState(5);
     const [phase, setPhase] = useState<"lesson" | "complete">("lesson");
     const lessonTitleRef = useRef<string>("");
 
-    // Fetch AI questions on mount
+    // Fetch hearts + AI questions on mount
     useEffect(() => {
         async function loadQuestions() {
             try {
+                // Step 0: Check and spend heart
+                const heartRes = await fetch("/api/hearts");
+                const heartData = heartRes.ok ? await heartRes.json() : { hearts: 5 };
+                setHearts(heartData.hearts);
+
+                if (heartData.hearts <= 0) {
+                    setNoHearts(true);
+                    setLoading(false);
+                    return;
+                }
+
+                // Spend 1 heart to start
+                const spendRes = await fetch("/api/spend-heart", { method: "POST" });
+                const spendData = spendRes.ok ? await spendRes.json() : {};
+                if (spendData.noHearts) {
+                    setNoHearts(true);
+                    setLoading(false);
+                    return;
+                }
+                if (spendData.hearts !== undefined) setHearts(spendData.hearts);
+
                 // Step 1: Fetch lesson title from Supabase via a lightweight API call
                 const lessonRes = await fetch(`/api/lesson-info?id=${lessonId}`);
                 const lessonData = lessonRes.ok ? await lessonRes.json() : null;
@@ -265,6 +287,40 @@ export default function LessonPage() {
         if (currentIndex < total - 1) { setCurrentIndex((i) => i + 1); setSelectedOption(null); setFeedbackState("idle"); }
         else { setPhase("complete"); }
     }
+
+    // No hearts — block lesson
+    if (noHearts) return (
+        <div className="flex min-h-screen items-center justify-center bg-background px-4">
+            <div className="max-w-sm w-full rounded-2xl border-2 border-red-200 dark:border-red-900/50 bg-card p-8 text-center shadow-xl">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30 mx-auto mb-4">
+                    <span className="text-4xl">💔</span>
+                </div>
+                <h2 className="text-xl font-black text-red-600 dark:text-red-400 mb-2">
+                    Bạn đã hết Tim!
+                </h2>
+                <p className="text-sm text-muted-foreground mb-6">
+                    Mỗi bài học cần <strong>1 Tim</strong> để bắt đầu. Hãy vào mục <strong>Đọc truyện</strong> để kiếm thêm Tim nhé!
+                </p>
+                <div className="flex flex-col gap-2">
+                    <button
+                        onClick={() => router.push("/stories")}
+                        className="w-full rounded-xl bg-gradient-to-r from-indigo-600 to-sky-600 px-4 py-3 text-sm font-bold text-white shadow-lg hover:shadow-xl transition-all cursor-pointer"
+                    >
+                        📖 Đọc truyện kiếm Tim
+                    </button>
+                    <button
+                        onClick={() => router.push("/lessons")}
+                        className="w-full rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
+                    >
+                        ← Quay lại danh sách bài học
+                    </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground/50 mt-4">
+                    Tim sẽ được nạp lại 5 vào đầu mỗi ngày mới ☀️
+                </p>
+            </div>
+        </div>
+    );
 
     // Loading state
     if (loading) return <AILoadingScreen />;

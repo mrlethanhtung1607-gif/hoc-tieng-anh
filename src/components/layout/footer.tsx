@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, Mail, Phone, MapPin } from "lucide-react";
+import { BookOpen, User, Phone, MapPin } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 const QUICK_LINKS = [
@@ -75,16 +75,16 @@ export function Footer() {
                         <h3 className="mb-3 text-sm font-semibold">Liên hệ</h3>
                         <ul className="space-y-2 text-sm text-muted-foreground">
                             <li className="flex items-center gap-2">
-                                <Mail className="h-4 w-4 text-emerald-500 shrink-0" />
-                                contact@hoctienganh.vn
+                                <User className="h-4 w-4 text-emerald-500 shrink-0" />
+                                Lê Thanh Tùng
                             </li>
                             <li className="flex items-center gap-2">
                                 <Phone className="h-4 w-4 text-emerald-500 shrink-0" />
-                                0123 456 789
+                                0839 333 192
                             </li>
                             <li className="flex items-start gap-2">
                                 <MapPin className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
-                                Hà Nội, Việt Nam
+                                Ninh Bình, Việt Nam
                             </li>
                         </ul>
                     </div>

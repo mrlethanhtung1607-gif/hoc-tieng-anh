@@ -196,3 +196,92 @@ insert into public.lessons (title, unit_number, is_unlocked) values
   ('Du lịch & Khám phá',     4, false),
   ('Ăn uống & Nhà hàng',     5, false),
   ('Mua sắm & Giá cả',       6, false);
+
+-- ============================================================
+-- 5. STORIES (Cloze Test — fill-in-the-blank reading)
+-- ============================================================
+-- Content format: normal text + {hidden English word/phrase}
+-- Example: 'Bố ({Dad}). Đây là ({This is}) một câu chuyện.'
+
+create table public.stories (
+  id          uuid primary key default uuid_generate_v4(),
+  title       text not null,
+  description text,
+  content     text not null,
+  difficulty  text not null default 'A1'
+    check (difficulty in ('A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2')),
+  hearts_reward int not null default 1,
+  cover_emoji text not null default '📖',
+  created_at  timestamptz not null default now()
+);
+
+comment on table public.stories is 'Reading stories with cloze-test gaps using {} syntax';
+
+alter table public.stories enable row level security;
+
+create policy "Anyone can read stories"
+  on public.stories for select
+  using (true);
+
+-- Add hearts column to profiles (for story rewards)
+alter table public.profiles add column if not exists hearts int not null default 5;
+
+-- Track completed stories per user
+create table public.user_stories (
+  id         uuid primary key default uuid_generate_v4(),
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  story_id   uuid not null references public.stories(id) on delete cascade,
+  completed_at timestamptz not null default now(),
+  unique (user_id, story_id)
+);
+
+alter table public.user_stories enable row level security;
+
+create policy "Users can read own story progress"
+  on public.user_stories for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert own story progress"
+  on public.user_stories for insert
+  with check (auth.uid() = user_id);
+
+-- ============================================================
+-- SAMPLE STORIES (3 stories with cloze-test content)
+-- ============================================================
+insert into public.stories (title, description, content, difficulty, hearts_reward, cover_emoji) values
+(
+  'Bố - Dad',
+  'Câu chuyện cảm động về tình cha con',
+  'Bố ({Dad}). Đây không chỉ là ({This is not just}) một từ ngữ ({a word}). Ý nghĩa của từ bố ({The meaning of dad}) là tình yêu vô điều kiện ({unconditional love}).
+
+Mỗi sáng ({Every morning}), bố thức dậy ({dad wakes up}) rất sớm ({very early}). Bố đi làm ({Dad goes to work}) để kiếm tiền ({to earn money}) nuôi gia đình ({for the family}).
+
+Bố luôn nói ({Dad always says}): "Con hãy cố gắng học giỏi ({Study hard}), vì tương lai ({for the future}) của con ({of yours})."
+
+Cảm ơn bố ({Thank you dad}). Con yêu bố ({I love you dad}) rất nhiều ({so much})!',
+  'A1', 2, '👨'
+),
+(
+  'Một ngày ở trường - A Day at School',
+  'Theo chân Minh trong một ngày đi học',
+  'Sáng nay ({This morning}), Minh thức dậy ({Minh woke up}) lúc 6 giờ ({at 6 o''clock}). Minh đánh răng ({Minh brushed his teeth}) và ăn sáng ({and had breakfast}).
+
+Minh đi bộ tới trường ({Minh walked to school}). Bạn thân nhất ({Best friend}) của Minh là Lan. Họ cùng nhau ({They together}) vào lớp ({went to class}).
+
+Thầy giáo nói ({The teacher said}): "Hôm nay chúng ta sẽ học ({Today we will learn}) về khoa học ({about science})."
+
+Sau giờ học ({After class}), Minh chơi bóng đá ({Minh played football}) với bạn bè ({with friends}). Đó là ({It was}) một ngày vui vẻ ({a happy day})!',
+  'A1', 1, '🏫'
+),
+(
+  'Chuyến du lịch - The Trip',
+  'Gia đình An đi du lịch biển',
+  'Mùa hè năm ngoái ({Last summer}), gia đình An ({An''s family}) đi du lịch ({went on a trip}) đến biển ({to the beach}).
+
+Họ lái xe ({They drove}) suốt ba tiếng ({for three hours}). Khi tới nơi ({When they arrived}), An rất vui ({An was very happy}). Biển thật đẹp ({The sea was beautiful})!
+
+An xây lâu đài cát ({An built a sandcastle}) và bơi trong biển ({and swam in the sea}). Mẹ An nói ({An''s mom said}): "Cẩn thận nhé ({Be careful})!"
+
+Buổi tối ({In the evening}), cả gia đình ({the whole family}) ăn hải sản ({ate seafood}) tại nhà hàng ({at a restaurant}). Đó là ({It was}) kỷ niệm đẹp nhất ({the best memory}) của An.',
+  'A2', 2, '🏖️'
+);
