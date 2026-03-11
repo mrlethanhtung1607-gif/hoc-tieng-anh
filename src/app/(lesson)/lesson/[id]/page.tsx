@@ -204,7 +204,7 @@ export default function LessonPage() {
     useEffect(() => {
         async function loadQuestions() {
             try {
-                // Step 0: Check and spend heart
+                // Step 0: Fetch current hearts from DB
                 const heartRes = await fetch("/api/hearts");
                 const heartData = heartRes.ok ? await heartRes.json() : { hearts: 5 };
                 setHearts(heartData.hearts);
@@ -215,35 +215,23 @@ export default function LessonPage() {
                     return;
                 }
 
-                // Spend 1 heart to start
-                const spendRes = await fetch("/api/spend-heart", { method: "POST" });
-                const spendData = spendRes.ok ? await spendRes.json() : {};
-                if (spendData.noHearts) {
-                    setNoHearts(true);
-                    setLoading(false);
-                    return;
-                }
-                if (spendData.hearts !== undefined) setHearts(spendData.hearts);
-
-                // Step 1: Fetch lesson title from Supabase via a lightweight API call
+                // Step 1: Fetch lesson info from Supabase
                 const lessonRes = await fetch(`/api/lesson-info?id=${lessonId}`);
                 const lessonData = lessonRes.ok ? await lessonRes.json() : null;
                 const topic = lessonData?.title || "Basic English";
                 const level = lessonData?.level || "A1";
                 lessonTitleRef.current = topic;
 
-                // Step 2: Generate AI quiz based on lesson topic
-                const quizRes = await fetch("/api/generate-quiz", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ topic, level }),
-                });
-                const quizData = await quizRes.json();
-
-                if (quizData.questions && Array.isArray(quizData.questions) && quizData.questions.length > 0) {
-                    setQuestions(quizData.questions);
-                    setIsAI(true);
+                // Step 2: Use static questions from DB, or fallback (100% FREE — no AI)
+                if (lessonData?.questions && Array.isArray(lessonData.questions) && lessonData.questions.length > 0) {
+                    // ✅ Static hardcoded questions from DB
+                    const withIds = lessonData.questions.map((q: Record<string, unknown>, i: number) => ({
+                        ...q,
+                        id: `static-${lessonId}-${i}`,
+                    }));
+                    setQuestions(withIds);
                 } else {
+                    // ✅ Fallback static questions (also FREE — no API)
                     setQuestions(FALLBACK_QUESTIONS);
                 }
             } catch {
@@ -270,8 +258,17 @@ export default function LessonPage() {
             setCorrectCount((c) => c + 1);
             setFeedbackState("correct");
         } else {
-            setHearts((h) => Math.max(0, h - 1));
             setFeedbackState("incorrect");
+            // Deduct 1 heart in DB
+            fetch("/api/spend-heart", { method: "POST" })
+                .then((r) => r.json())
+                .then((data) => {
+                    if (data.hearts !== undefined) setHearts(data.hearts);
+                    if (data.noHearts || data.hearts === 0) {
+                        setNoHearts(true);
+                    }
+                })
+                .catch(() => setHearts((h) => Math.max(0, h - 1)));
             // Save mistake for later review
             saveMistake({
                 questionContent: mc.prompt,
@@ -299,7 +296,7 @@ export default function LessonPage() {
                     Bạn đã hết Tim!
                 </h2>
                 <p className="text-sm text-muted-foreground mb-6">
-                    Mỗi bài học cần <strong>1 Tim</strong> để bắt đầu. Hãy vào mục <strong>Đọc truyện</strong> để kiếm thêm Tim nhé!
+                    Mỗi câu trả lời sai sẽ trừ <strong>1 Tim</strong>. Hãy vào mục <strong>Đọc truyện</strong> để kiếm thêm Tim nhé!
                 </p>
                 <div className="flex flex-col gap-2">
                     <button

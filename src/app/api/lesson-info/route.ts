@@ -26,10 +26,10 @@ export async function GET(request: NextRequest) {
         }
     }
 
-    // Get lesson title
+    // Get lesson title + static questions
     const { data: lesson } = await supabase
         .from("lessons")
-        .select("title")
+        .select("title, questions")
         .eq("id", id)
         .single();
 
@@ -40,5 +40,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
         title: lesson.title,
         level,
+        questions: lesson.questions || null,
     });
 }
